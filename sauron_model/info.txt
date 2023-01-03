@@ -1,0 +1,9 @@
+YOLOv5 version: v6.0
+Epoch: 80
+Image size: 640
+Base model: yolov5s.pt
+Base model config file: /content/yolov5/models/yolov5s.yaml
+Epoch: 200
+Image size: 640
+Base model: yolov5s.pt
+Base model config file: /content/yolov5/models/yolov5s.yaml

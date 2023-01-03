@@ -1,0 +1,15 @@
+names:
+- 'NO'
+- 'YES'
+- combatbox
+- pokeinfobox
+nc: 4
+roboflow:
+  license: CC BY 4.0
+  project: pokemonrevoonline
+  url: https://universe.roboflow.com/ryzen-gaming-m4c6x/pokemonrevoonline/dataset/4
+  version: 4
+  workspace: ryzen-gaming-m4c6x
+test: ../test/images
+train: pokemonrevoonline-4/train/images
+val: pokemonrevoonline-4/valid/images

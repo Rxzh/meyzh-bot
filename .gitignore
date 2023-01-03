@@ -1,0 +1,8 @@
+*.png
+*.ipynb_checkpoints
+*.pyc
+*.pyo
+*.DS_Store
+*.zip
+sauron_eye/inference
+*.ipynb

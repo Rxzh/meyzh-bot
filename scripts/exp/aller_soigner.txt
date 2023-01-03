@@ -1,0 +1,17 @@
+down:6
+up:1
+right:1
+down:3
+right:5
+down:8
+right:2
+down:4
+right:5
+down:4
+right:4
+===HEAL=== #ne pas toucher ensuite
+up:10
+space:2
+1:1
+space:3
+down:8
