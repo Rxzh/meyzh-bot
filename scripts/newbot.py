@@ -50,7 +50,7 @@ class Sauron:
     def __init__(self):
         self.model = torch.hub.load('ultralytics/yolov5',
                                     'custom', # yolov5s, yolov5n - yolov5x6 or custom
-                                    path='/Users/pierrebelamri/Documents/GitHub/pokemon-classifier/sauron_model/best.pt', force_reload=True)
+                                    path='sauron_model/best.pt', force_reload=True) #TODO: check if path is ok
 
         #self.model.conf = 0.4    # confidence threshold (0-1)
 
@@ -139,15 +139,15 @@ class MeyzhBOT:
         """
         returns True if in combat
         """
-        xyxy, xywh, xywhn = await self.process_img(self.global_screenshot()) # = sauron.xyxy, sauron.xywh, sauron.xywhn
-        return 'combatbox' in xywhn['name'].values
+        #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot()) # = sauron.xyxy, sauron.xywh, sauron.xywhn
+        return 'combatbox' in self.sauron.xywhn['name'].values
     
     async def is_there_an_evo(self):
         """
         returns True if there is an evolution
         """
-        xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
-        return 'evolve' in xywhn['name'].values
+        #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
+        return 'evolve' in self.sauron.xywhn['name'].values
             
 
     def find_poke_in_img(self, img):
@@ -161,25 +161,25 @@ class MeyzhBOT:
         predicted_pokemon = self.model_pokemon_classifier.config.id2label[predicted_id]
         return predicted_pokemon
 
-    async def moving_routine(self, probas = (.2, .2),vertical = False): #TODO: rename probas
+    async def moving_routine(self, times = (.2, .2),vertical = False): #TODO: rename probas
         if vertical:
             for _ in range(3):
                 pyautogui.keyDown('up')
-                await asyncio.sleep(probas[0])
+                await asyncio.sleep(times[0])
                 pyautogui.keyUp('up')
                 await asyncio.sleep(0)
                 pyautogui.keyDown('down')
-                await asyncio.sleep(probas[1])
+                await asyncio.sleep(times[1])
                 pyautogui.keyUp('down')
                 await asyncio.sleep(0)
         else:
             for _ in range(3):
                 pyautogui.keyDown('left')
-                await asyncio.sleep(probas[0])
+                await asyncio.sleep(times[0])
                 pyautogui.keyUp('left')
                 await asyncio.sleep(0)
                 pyautogui.keyDown('right')
-                await asyncio.sleep(probas[1])
+                await asyncio.sleep(times[1])
                 pyautogui.keyUp('right')
                 await asyncio.sleep(0)
 
@@ -187,11 +187,14 @@ class MeyzhBOT:
         """
         returns the names of the pokemons in combat if in combat (My Poke, Poke Adversaire) else returns (None, None)
         """
-        xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
-        if 'combatbox' in xywhn['name'].values:
+        #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
+        xyxy, xywh, xywhn = await self.sauron.model(self.global_screenshot())
 
-            combatbox_xc = xywhn.loc[xywhn['name'] == 'combatbox', 'xcenter'].values[0] * self.screen_shape[0]
-            combatbox_yc = xywhn.loc[xywhn['name'] == 'combatbox', 'ycenter'].values[0] * self.screen_shape[1]
+        #if 'combatbox' in xywhn['name'].values:
+        if await self.am_i_in_combat():
+
+            combatbox_xc = xywhn.loc[self.sauron.xywhn['name'] == 'combatbox', 'xcenter'].values[0] * self.screen_shape[0]
+            combatbox_yc = xywhn.loc[self.sauron.xywhn['name'] == 'combatbox', 'ycenter'].values[0] * self.screen_shape[1]
 
             img = self.global_screenshot()
 
@@ -222,7 +225,10 @@ class MeyzhBOT:
         sleep(1)
         img = self.global_screenshot()
 
-        xyxy, xywh, xywhn = self.process_img(img)
+        xyxy, xywh, xywhn = self.sauron.model(img) #self.process_img(img)
+        
+        #TODO: check if there is an evolution and a move to learn
+        pass 
         
 
 
@@ -233,6 +239,7 @@ def main():
     bot = MeyzhBOT()
 
     while 1:
+        break # deprecated
         if bot.am_i_in_combat():
             print("====================")
             my_poke, other_poke = bot.poke_in_combat()

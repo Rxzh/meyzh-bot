@@ -6,3 +6,6 @@
 *.zip
 sauron_eye/inference
 *.ipynb
+*.toc
+*.pyz
+*.pkg

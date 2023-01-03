@@ -3,6 +3,13 @@ from tkinter import ttk
 import asyncio
 import os
 from time import sleep
+import sys
+
+
+if getattr(sys, 'frozen', False):
+    # frozen
+    #os.chdir(sys._MEIPASS)
+    os.chdir(os.path.dirname(sys.executable))
 
 
 
@@ -65,6 +72,8 @@ class Window(tk.Tk):
     async def launch_script(self):
         selected_script = self.script_choice.get()
         
+
+        #TODO import everything before to fit frozen app
         package = "scripts.{}.{}".format(selected_script, selected_script)
         name = "main"
         main = getattr(__import__(package, fromlist=[name]), name)
