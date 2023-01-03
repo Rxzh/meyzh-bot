@@ -9,3 +9,4 @@ sauron_eye/inference
 *.toc
 *.pyz
 *.pkg
+*discord_bot.py

@@ -7,8 +7,7 @@ import sys
 
 
 if getattr(sys, 'frozen', False):
-    # frozen
-    #os.chdir(sys._MEIPASS)
+    #if app is frozen
     os.chdir(os.path.dirname(sys.executable))
 
 
