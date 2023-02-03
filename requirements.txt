@@ -3,3 +3,4 @@ pillow
 transformers
 torch
 discord.py
+pynput

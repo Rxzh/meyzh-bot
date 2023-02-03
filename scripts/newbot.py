@@ -1,19 +1,25 @@
+
+
+#import pyautogui
 import pyautogui
+
 from time import sleep
 import PIL
 #from transformers import AutoFeatureExtractor, AutoModelForImageClassification
 from transformers import ViTForImageClassification, ViTFeatureExtractor
 from PIL import Image
 import torch
+from torch import hub, cuda
 
-import discord
-from discord.ext import commands
-from time import sleep, time
-import pandas as pd
-from discord_bot import DiscordBot
+#import discord
+#from discord.ext import commands
+from time import sleep
+#import pandas as pd
+#from discord_bot import DiscordBot
 import asyncio
 import os
 from threading import Thread
+import asyncio
 
 """
 CLASSES : 
@@ -26,34 +32,16 @@ CLASSES :
 - pokeinfobox
 """
 
-class Var:
-    #TODO: deprecate after Sauron integration
-    def __init__(self):
-        self.is_active = True
-        self.kill = False
-        
-    def change_activity(self):
-        self.is_active = not(self.is_active)
-
-    def set_active(self):
-        self.is_active = True
-    
-    def set_inactive(self):
-        self.is_active = False
-    
-    def kill_func(self):
-        self.kill = True
-
-
 
 class Sauron:
-    def __init__(self):
-        self.model = torch.hub.load('ultralytics/yolov5',
-                                    'custom', # yolov5s, yolov5n - yolov5x6 or custom
-                                    path='sauron_model/best.pt', force_reload=True) #TODO: check if path is ok
+    def __init__(self, TKWindow):
+        self.model = hub.load(  'ultralytics/yolov5',
+                                'custom', # yolov5s, yolov5n - yolov5x6 or custom
+                                path='sauron_model/best.pt', force_reload=True) #TODO: check if path is ok
 
         #self.model.conf = 0.4    # confidence threshold (0-1)
 
+        self.TKWindow = TKWindow
         self.inference = self.model(pyautogui.screenshot())
         self.xyxy  = self.inference.pandas().xyxy[0] 
         self.xywh  = self.inference.pandas().xywh[0] 
@@ -61,50 +49,42 @@ class Sauron:
 
     def inference_func(self, _):
         self.inference = self.model(pyautogui.screenshot())
+
+        # print(self.inference)
         self.xyxy  = self.inference.pandas().xyxy[0] 
         self.xywh  = self.inference.pandas().xywh[0] 
         self.xywhn = self.inference.pandas().xywhn[0] 
 
-    def main(self, var: Var):
-        
-        while not var.kill:
-            while var.is_active:
-                # Continuously perform inference every .1 seconds
-                
-                # Start a separate process to perform inference
-                self.inference_func(self.model)
-                
-                t = Thread(target=self.inference_func, args=(None,))
-                t.start()
-                # no need to ascincio.sleep
-                time.sleep(0.1)
-
-
-
-
+    def main(self):
+        while self.TKWindow.window_variables.is_active:                
+            while self.TKWindow.window_variables.is_paused and self.TKWindow.window_variables.is_active:
+                sleep(1)                
+            # Continuously perform inference every .5 seconds
+            self.inference_func(self.model)
+            sleep(2)
+            
+            #t = Thread(target=self.inference_func, args=(None,))
+            #t.start()
+            # no need to ascincio.sleep
+            
     
 
 
 class MeyzhBOT:
     
-    def __init__(self):
+    def __init__(self, TKWindow):
 
         #ML Models
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if cuda.is_available() else "cpu"
         self.model_pokemon_classifier = ViTForImageClassification.from_pretrained( "imjeffhi/pokemon_classifier").to(self.device)
         self.feature_extractor = ViTFeatureExtractor.from_pretrained('imjeffhi/pokemon_classifier')
 
+        self.TKWindow = TKWindow
 
-        # DEPRECATED
-        #self.model_sauron_eye = torch.hub.load( 'ultralytics/yolov5', 
-        #                                        'custom', # yolov5s, yolov5n - yolov5x6 or custom
-        #                                        path='/Users/pierrebelamri/Documents/GitHub/pokemon-classifier/sauron_model/best.pt', force_reload=True)
-
-
-        self.sauron = Sauron()
-        var = Var()
-        t = Thread(target = self.sauron.main, args=(var,))
-        #t.start()
+        self.sauron = Sauron(TKWindow=self.TKWindow)
+    
+        t = Thread(target = self.sauron.main)
+        t.start()
 
         self.screen_shape = pyautogui.size()
 
@@ -140,20 +120,21 @@ class MeyzhBOT:
         returns True if in combat
         """
         #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot()) # = sauron.xyxy, sauron.xywh, sauron.xywhn
+        
         return 'combatbox' in self.sauron.xywhn['name'].values
     
     async def is_there_an_evo(self):
         """
         returns True if there is an evolution
         """
-        #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
-        return 'evolve' in self.sauron.xywhn['name'].values
+        xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
+        return 'evolve' in xywhn['name'].values
             
 
     def find_poke_in_img(self, img):
         #if posix
         if os.name == 'posix':
-            img = PIL.Image.frombytes('RGB', img.size, img.tobytes(), 'raw', 'RGBX') 
+            img = Image.frombytes('RGB', img.size, img.tobytes(), 'raw', 'RGBX') 
             
 
         extracted = self.feature_extractor(images=img, return_tensors='pt').to(self.device)
@@ -161,8 +142,9 @@ class MeyzhBOT:
         predicted_pokemon = self.model_pokemon_classifier.config.id2label[predicted_id]
         return predicted_pokemon
 
-    async def moving_routine(self, times = (.2, .2),vertical = False): #TODO: rename probas
-        if vertical:
+    async def moving_routine(self, times = (.2, .2)): #TODO: rename probas
+        
+        if self.TKWindow.SCRIPT_PARAMS['movement'].get() == 'vertical':
             for _ in range(3):
                 pyautogui.keyDown('up')
                 await asyncio.sleep(times[0])
@@ -172,7 +154,7 @@ class MeyzhBOT:
                 await asyncio.sleep(times[1])
                 pyautogui.keyUp('down')
                 await asyncio.sleep(0)
-        else:
+        elif self.TKWindow.SCRIPT_PARAMS['movement'].get() == 'horizontal':
             for _ in range(3):
                 pyautogui.keyDown('left')
                 await asyncio.sleep(times[0])
@@ -187,8 +169,8 @@ class MeyzhBOT:
         """
         returns the names of the pokemons in combat if in combat (My Poke, Poke Adversaire) else returns (None, None)
         """
-        #xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
-        xyxy, xywh, xywhn = await self.sauron.model(self.global_screenshot())
+        xyxy, xywh, xywhn = await self.process_img(self.global_screenshot())
+
 
         #if 'combatbox' in xywhn['name'].values:
         if await self.am_i_in_combat():

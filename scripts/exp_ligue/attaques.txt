@@ -1,0 +1,4 @@
+pokemon:attack
+gyarados:3
+charizard:4
+meganium:1
