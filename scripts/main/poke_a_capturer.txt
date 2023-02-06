@@ -1,0 +1,4 @@
+machoke:kill
+arbok:kill
+ursaring:kill
+golbat:kill

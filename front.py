@@ -5,10 +5,8 @@ import os
 from time import sleep
 import sys
 import PIL
-
-from scripts.exp.exp import main as exp_main
-from scripts.exp_ligue.exp_ligue import main as exp_ligue_main
-from scripts.seek.seek import main as seek_main
+import tkinter.simpledialog
+from scripts.main.main import main as script_main
 
 from threading import Thread
 
@@ -17,12 +15,24 @@ if getattr(sys, 'frozen', False):
     os.chdir(os.path.dirname(sys.executable))
 
 
+class ChoiceDialog(tkinter.simpledialog.Dialog):
+    def __init__(self, parent, title, choices):
+        self.choices = choices
+        tkinter.simpledialog.Dialog.__init__(self, parent, title)
 
-class Scripts:
-    def __init__(self) -> None:
-        self.all = {'exp': exp_main,
-                    'exp_ligue': exp_ligue_main,
-                    'seek': seek_main}
+    def body(self, master):
+        tk.Label(master, text="Que faire avec ?").pack()
+
+        self.var = tk.StringVar()
+        self.var.set(self.choices[0])
+
+        option_menu = tk.OptionMenu(master, self.var, *self.choices)
+        option_menu.pack()
+
+        return option_menu
+
+    def apply(self):
+        self.result = self.var.get()
 
 
 class App:
@@ -77,7 +87,10 @@ def get_add_entry(listbox,entry_var):
         """
         entry = entry_var.get()
         if entry:
-            listbox.insert(tk.END, entry)
+            dialog = ChoiceDialog(listbox,"entry", ["kill", "capture", "run"])
+            if dialog.result:
+                listbox.insert(tk.END, entry.lower()+':'+ dialog.result)
+            #listbox.insert(tk.END, entry)
             entry_var.set("")
             listbox.config(height = len(listbox.get(0,tk.END)))
     return add_entry
@@ -130,17 +143,9 @@ class Window(tk.Tk):
         self.window_variables = WindowVariables()
 
         self.root.title("MeyzhBOT")
-        self.root.geometry("260x360")
-        self.script_choice = tk.StringVar(self.root)
-        self.script_choice.set("exp") # default value
+        self.root.geometry("580x220")
 
-        if getattr(sys, 'frozen', False):        
-            MAIN_PATH = os.path.abspath(os.path.join(os.path.abspath(sys.executable), os.pardir)) 
-            scripts = [s.split('/')[-1] for s in os.listdir(os.path.join(MAIN_PATH,'scripts')) if os.path.isdir(os.path.join(MAIN_PATH,f'scripts/{s}')) and s != '__pycache__']
-        else:   
-            scripts = [s.split('/')[-1] for s in os.listdir('scripts') if os.path.isdir(f'scripts/{s}') and s != '__pycache__']
-        self.script_menu = tk.OptionMenu(self.root, self.script_choice, *scripts)
-        self.script_menu.pack()
+
 
         s = ttk.Style()
         s.configure('TButton', bg='#FFFF00')
@@ -153,7 +158,7 @@ class Window(tk.Tk):
 
         self.SCRIPT_PARAMS = {}
 
-        self.PAGES = {}
+        self.FRONT_ITEMS = list()
 
 
         ################ SEEK
@@ -162,13 +167,18 @@ class Window(tk.Tk):
         self.pk_to_find_entry_var = tk.StringVar()
         self.pk_to_find_entry = tk.Entry(self.root, textvariable=self.pk_to_find_entry_var)
         
-        with open('scripts/seek/poke_a_capturer.txt','r') as f:
+        with open('scripts/main/poke_a_capturer.txt','r') as f:
             for line in f:
-                self.pk_to_find_listbox.insert(tk.END, line.strip())
+                self.pk_to_find_listbox.insert(tk.END,line.strip())
+                
+
+
+
+
+                
+                
 
         self.pk_to_find_listbox.config(height = len(self.pk_to_find_listbox.get(0,tk.END)))
-
-
         self.add_pkmn_to_find_button = tk.Button(self.root, 
                                                 text="Ajouter Poke", 
                                                 command=get_add_entry(self.pk_to_find_listbox,self.pk_to_find_entry_var))
@@ -187,65 +197,85 @@ class Window(tk.Tk):
         self.SCRIPT_PARAMS['poke_a_capturer'] = list(self.pk_to_find_listbox.get(0,tk.END))
 
 
-        self.PAGES['seek'] = [  self.pk_to_find_listbox,
-                                self.pk_to_find_entry,
-                                self.add_pkmn_to_find_button,
-                                self.remove_pkmn_to_find_button,
-                                self.save_pk_to_find_button]
+   
+        self.LEFT_FRAME  = tk.Frame(self.root)
+        self.RIGHT_FRAME = tk.Frame(self.root)
 
 
+        # WHAT TO DO WITH OTHERS ? 
+        self.others_frame = tk.Frame(self.LEFT_FRAME)
+        self.others_label = tk.Label(self.others_frame, text="Tous les autres :")
+        self.others_label.pack(side="left")
+        
+        self.SCRIPT_PARAMS['others'] = tk.StringVar(self.others_frame)
+        self.SCRIPT_PARAMS['others'].set("run") # default value
+        self.all_others_menu = tk.OptionMenu(self.others_frame, self.SCRIPT_PARAMS['others'], *['run', 'kill', 'capture'])
 
-        ################ EXP
-        ## SOIN
+        # MOVEMENT (HORIZONTAL, VERTICAL)
+        self.movement_frame = tk.Frame(self.LEFT_FRAME)
+        self.movement_label = tk.Label(self.movement_frame, text="Mouvement:")
+        self.movement_label.pack(side="left")
 
-        self.option_frame = tk.Frame(self.root)
-        self.option_frame.pack(anchor="n")
-        self.option_label = tk.Label(self.option_frame, text="Soigner tous les ? combats:")
+        self.SCRIPT_PARAMS['movement'] = tk.StringVar(self.root)
+        self.SCRIPT_PARAMS['movement'].set("horizontal")
+        self.movement_menu = tk.OptionMenu(self.movement_frame, self.SCRIPT_PARAMS['movement'], "horizontal", "vertical")
+        self.movement_menu.pack(side='left')
+
+        
+        
+        # HEAL EVERY ? COMBAT
+        self.option_frame = tk.Frame(self.LEFT_FRAME)
+        self.option_label = tk.Label(self.option_frame, text="Soigner tous les:")
         self.option_label.pack(side="left")
         self.option_entry = tk.Entry(self.option_frame, width=3)
         self.option_entry.pack(side="left")     
         self.option_entry.insert(0, "10")
         self.SCRIPT_PARAMS['heal every'] = 10
-        self.switch_menu_button = tk.Button(text="Ouvrir l'enregistreur de chemin", width=25, command=lambda: self.loop.create_task(self.switch_menu()))
+
+
+        self.switch_menu_button = tk.Button(self.RIGHT_FRAME,text="Ouvrir l'enregistreur de chemin", width=25, command=lambda: self.loop.create_task(self.switch_menu()))
         
-        #################### OVERALL
-
-
-        self.button_script = tk.Button(text="Lancer script", width=10, command=lambda: self.loop.create_task(self.launch_script()))
+        # GLOBAL MENU START, STOP, PAUSE ...
+        self.button_script = tk.Button(self.RIGHT_FRAME,text="Lancer script", width=10, command=lambda: self.loop.create_task(self.launch_script()))
         self.button_script.pack()        
 
-        self.button_stop_script = tk.Button(text="Stopper le script", width=10, command=lambda: self.loop.create_task(self.stop_script_func()))        
+        self.button_stop_script = tk.Button(self.RIGHT_FRAME,text="Stopper le script", width=10, command=lambda: self.loop.create_task(self.stop_script_func()))        
         self.button_stop_script.pack()
         self.button_stop_script.config(state=tk.DISABLED)
 
         self.pause_button_text = 'Pause'
-        self.button_pause_script = tk.Button(text=self.pause_button_text, width=10, command=lambda: self.loop.create_task(self.pause_func()))
+        self.button_pause_script = tk.Button(self.RIGHT_FRAME,text=self.pause_button_text, width=10, command=lambda: self.loop.create_task(self.pause_func()))
         self.button_pause_script.pack()
         self.button_pause_script.config(state=tk.DISABLED)
 
-
-        self.button_quit = tk.Button(text="Quitter", width=10, command=lambda: self.loop.create_task(self.quit()))
+        self.button_quit = tk.Button(self.RIGHT_FRAME,text="Quitter", width=10, command=lambda: self.loop.create_task(self.quit()))
         self.button_quit.pack()
 
+    
+
+
+        self.LEFT_FRAME.pack(anchor='nw', side="left")
+        self.RIGHT_FRAME.pack(anchor='ne', side="right")
+        
         self.page_1_buttons = [ self.button_script, 
-                                self.option_frame,
+
+                                self.option_frame, 
+                                self.others_frame,
+                                self.movement_frame ,
+
                                 self.button_stop_script, 
                                 self.button_pause_script, 
+                                self.pk_to_find_listbox,
+                                self.pk_to_find_entry,
+                                self.add_pkmn_to_find_button,
+                                self.remove_pkmn_to_find_button,
+                                self.save_pk_to_find_button,
+                                
+                                self.movement_menu,
                                 self.switch_menu_button,
-                                self.button_quit]
+                                self.button_quit,
+                                self.all_others_menu]
 
-        self.PAGES['exp'] = [self.switch_menu_button, self.option_frame]
-
-
-
-        self.SCRIPT_PARAMS['movement'] = tk.StringVar(self.root)
-        #self.movement_choice = tk.StringVar(self.root)
-        self.SCRIPT_PARAMS['movement'].set("horizontal")
-        #self.movement_choice.set("horizontal") # default value        
-        
-
-        self.movement_menu = tk.OptionMenu(self.root, self.SCRIPT_PARAMS['movement'], "horizontal", "vertical")
-        self.movement_menu.pack()
 
 
         ############################ PAGE 2
@@ -253,9 +283,9 @@ class Window(tk.Tk):
         self.launch_key_recorder_button = tk.Button(text="Lancer l'enregistreur de touches", width=25, command=lambda: self.loop.create_task(self.launch_key_recorder_func()))
 
 
-        self.page_2_buttons = [ self.switch_menu_button,
-                                self.launch_key_recorder_button,
-                                self.button_quit]
+        self.page_2_buttons = [ self.launch_key_recorder_button,
+                                self.switch_menu_button,
+                                self.button_quit] #TODO: add here the 'chemin' name
         
         self.current_page = 1
         self.key_recorder_is_on = False
@@ -264,48 +294,18 @@ class Window(tk.Tk):
     async def save_pkmn_to_find(self):
         self.SCRIPT_PARAMS['poke_a_capturer'] = list(self.pk_to_find_listbox.get(0,tk.END))
         print("Poke a capturer sont maintenant : ", self.SCRIPT_PARAMS['poke_a_capturer'])
-        with open('scripts/seek/poke_a_capturer.txt','w') as f:
+        with open('scripts/main/poke_a_capturer.txt','w') as f:
             for i in range(self.pk_to_find_listbox.size()):
                 f.write(self.pk_to_find_listbox.get(i) + '\n')
                 
 
 
     async def show(self):
+        if self.current_page == 1:   
+                for block in self.page_1_buttons:
+                    block.pack()
         while not(self.window_variables.kill):
             
-            if self.current_page == 1:   
-                for page in self.PAGES.keys():
-                    if page != self.script_choice.get():
-                        for button in self.PAGES[page]:
-                            button.pack_forget()  
-                    else:
-                        for button in self.PAGES[page]:
-                            button.pack()           
-            
-                if self.script_choice.get() == 'exp' and False:                             
-                    self.option_frame.pack(after=self.script_menu, before=self.button_script)
-                    self.switch_menu_button.pack()
-
-                elif self.script_choice.get() == 'seek' and False:
-
-                    #for page in self.PAGES.keys():
-                    #self.option_frame.pack_forget()
-                    #self.switch_menu_button.pack_forget()
-
-                    self.pk_to_find_listbox.pack()
-                    #self.pk_to_find_entry_var.pack()
-                    self.pk_to_find_entry.pack()
-                    self.add_pkmn_to_find_button.pack()
-                    self.remove_pkmn_to_find_button.pack()
-
-                    #self.poke_to_find.pack()
-
-                else:
-
-                    pass
-                    #self.option_frame.pack_forget()
-                    #self.switch_menu_button.pack_forget()
-
             self.root.update()
             await asyncio.sleep(.1)
 
@@ -316,14 +316,8 @@ class Window(tk.Tk):
         self.root.destroy()
 
     
-    async def async_func(self):
-        for _ in range(10):
-            print('coucou')
-            await asyncio.sleep(1)
-    
-    async def launch_script(self):
-        selected_script = self.script_choice.get()        
-        main = Scripts().all[selected_script]
+    async def launch_script(self):     
+        main = script_main
 
         self.window_variables.set_active()
         self.button_pause_script.config(text=self.window_variables.pause_button_text, state=tk.NORMAL)
@@ -332,10 +326,9 @@ class Window(tk.Tk):
 
         self.SCRIPT_PARAMS['heal every'] = int(self.option_entry.get())
 
-        if selected_script == 'exp':
-            await main(self, heal_every = int(self.option_entry.get())) #TODO to deprecate
-        else:
-            await main(self)
+
+        await main(self)
+        
 
     async def stop_script_func(self):
 
@@ -359,6 +352,7 @@ class Window(tk.Tk):
                     button.pack_forget()
                 else:
                     button.config(text="Retour au menu principal")
+
             for button in self.page_2_buttons:
                 button.pack()
         elif self.current_page == 1:
@@ -418,7 +412,7 @@ class Window(tk.Tk):
             self.root.unbind('<KeyPress>')
             self.key_recorder_is_on = False
             print(self.keys_recorded)
-            with open('scripts/exp/aller_soigner.txt', 'w') as f:
+            with open('scripts/main/aller_soigner.txt', 'w') as f:
                 
                 
                 for idx, key in enumerate(self.keys_recorded):
